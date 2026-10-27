@@ -18,6 +18,8 @@ Chip and betting tracker for Corellian Spike Sabacc. One shared phone, no server
 - `src/main.ts`: rendering. `act(fn)` applies an engine function, pushes undo, saves
   and re-renders. Screen-only state (raise amount, picked winners, open sheet) lives
   in module variables.
+- `src/sound.ts`: sound effects synthesized with Web Audio (no audio files). `act(fn, sound)`
+  plays a sound after an action, plus a turn chime when the next player is up.
 - `test/engine.test.ts`: Vitest tests for the engine.
 
 ## Rules decisions
