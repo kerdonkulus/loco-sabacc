@@ -13,8 +13,13 @@ Screen and it works offline.
    (amounts set in Settings). The deal passes to the left each hand.
 2. **Three rounds**, each one:
    - **Turn actions**, starting with the player left of the dealer (in a 2-player
-     game, the player being dealt to goes first): Gain, Discard, Swap, Stand, or
-     Junk (fold).
+     game, the player being dealt to goes first):
+     - **Gain**: take the top card of the draw pile. Either keep it as an extra card
+       (**Gain: keep**), or discard a card from your hand first and then draw
+       (**Gain: discard**).
+     - **Swap**: take the top card of the discard pile in exchange for a card in your hand.
+     - **Stand**: do nothing.
+     - **Junk**: fold.
    - **Betting**, in the same order: Check, Bet, Call, Raise, Fold, or All in. Bets
      and raises go up in steps of the **bet step**. A raise gives everyone else a
      chance to respond, and the round ends when everyone still in has matched.

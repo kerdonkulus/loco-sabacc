@@ -22,6 +22,9 @@ Chip and betting tracker for Corellian Spike Sabacc. One shared phone, no server
 ## Rules decisions
 
 - Acting order every phase: left of the dealer first, dealer last.
+- Turn actions are Gain (keep, or discard first then draw), Swap (top of the discard
+  pile for a card in hand), Stand and Junk (fold). There is no standalone Discard.
+  The app only records them; it doesn't track cards.
 - Each round: turn actions → betting → spike dice (physical; the app records
   doubles). Three rounds, then the showdown.
 - Bets and raises are "raise to" totals in steps of `settings.base`. Any raise,

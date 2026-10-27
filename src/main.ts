@@ -286,9 +286,9 @@ function dealPanel(game: Game): HTMLElement {
 }
 
 const TURN_ACTIONS: { action: TurnAction; label: string; hint: string }[] = [
-  { action: "gain", label: "Gain", hint: "Draw a card" },
-  { action: "discard", label: "Discard", hint: "Drop a card" },
-  { action: "swap", label: "Swap", hint: "Trade a card" },
+  { action: "gain", label: "Gain: keep", hint: "Draw from the pile and keep it" },
+  { action: "gainDiscard", label: "Gain: discard", hint: "Discard a card, then draw" },
+  { action: "swap", label: "Swap", hint: "Take the top discard for a card" },
   { action: "stand", label: "Stand", hint: "Do nothing" },
 ];
 

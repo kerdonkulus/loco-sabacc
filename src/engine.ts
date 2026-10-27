@@ -17,7 +17,12 @@ export interface Player {
   chips: number;
 }
 
-export type TurnAction = "gain" | "discard" | "swap" | "stand" | "junk";
+/**
+ * Gain draws the top card of the draw pile, either keeping it as an extra card or
+ * after first discarding a card from hand. Swap takes the top card of the discard
+ * pile in exchange for a card in hand.
+ */
+export type TurnAction = "gain" | "gainDiscard" | "swap" | "stand" | "junk";
 export type BetAction =
   | { type: "check" }
   | { type: "call" }
@@ -193,14 +198,14 @@ export function startHand(prev: Game): Game {
 }
 
 const ACTION_LABEL: Record<TurnAction, string> = {
-  gain: "gains",
-  discard: "discards",
+  gain: "gains (draws and keeps)",
+  gainDiscard: "gains (discards, then draws)",
   swap: "swaps",
   stand: "stands",
   junk: "junks (folds)",
 };
 
-/** Records the current player's turn action (Gain, Discard, Swap, Stand, Junk). */
+/** Records the current player's turn action (Gain, Swap, Stand, Junk). */
 export function turnAction(prev: Game, action: TurnAction): Game {
   const game = clone(prev);
   const hand = requirePhase(game, "turns");
