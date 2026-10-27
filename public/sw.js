@@ -1,7 +1,7 @@
 // Service worker: caches the app so it works at the table with no signal.
 // Paths are relative to the worker's scope, so the app can live under any path.
 
-const CACHE = "sabacc-v1";
+const CACHE = "sabacc-v2";
 const SCOPE = new URL(self.registration.scope);
 const INDEX = new URL("./", SCOPE).href;
 

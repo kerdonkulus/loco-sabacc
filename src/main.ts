@@ -1,3 +1,7 @@
+import "@fontsource/orbitron/latin-600.css";
+import "@fontsource/orbitron/latin-800.css";
+import "@fontsource/rajdhani/latin-500.css";
+import "@fontsource/rajdhani/latin-700.css";
 import "./style.css";
 import {
   type BetAction,
@@ -114,13 +118,13 @@ function settingsFields(settings: Settings, withStart: boolean): HTMLElement[] {
     numberField("Bet step", "base", settings, "Bets and raises go up by this much"),
     numberField("Main pot ante", "mainAnte", settings, "Each player, every hand"),
     numberField("Sabacc pot ante", "sabaccAnte", settings, "Each player, every hand"),
-    withStart ? numberField("Starting chips", "startingChips", settings) : null,
+    withStart ? numberField("Starting credits", "startingChips", settings) : null,
   ].filter((x): x is HTMLElement => x !== null);
 }
 
 function validSettings(s: Settings): boolean {
   if (s.base < 1 || s.startingChips < 1) {
-    toast("Bet step and starting chips must be at least 1.");
+    toast("Bet step and starting credits must be at least 1.");
     return false;
   }
   return true;
@@ -181,8 +185,9 @@ function setupEl(): HTMLElement {
 
   return h("main", { class: "setup" },
     h("header", { class: "brand" },
+      h("div", { class: "suits", "aria-hidden": "true" }, h("i", { class: "suit circle" }), h("i", { class: "suit triangle" }), h("i", { class: "suit square" })),
       h("h1", {}, "Loco Sabacc"),
-      h("p", { class: "muted" }, "Chips and betting for Corellian Spike Sabacc")),
+      h("p", { class: "tagline" }, "Corellian Spike · cantina table")),
     h("section", { class: "card" },
       h("h2", {}, "Players"),
       h("p", { class: "muted small" }, "Seat order around the table, clockwise."),
@@ -190,7 +195,7 @@ function setupEl(): HTMLElement {
       addButton,
       h("label", { class: "field" }, h("span", {}, "First dealer"), dealerSelect)),
     h("section", { class: "card" },
-      h("h2", {}, "Chips"),
+      h("h2", {}, "Credits"),
       ...settingsFields(settings, true)),
     h("button", { type: "button", class: "primary big", onclick: start }, "Start game"));
 }
@@ -217,7 +222,7 @@ function tableEl(game: Game): HTMLElement {
     h("section", { class: "panel" }, panelEl(game)));
 }
 
-/** Main pot chips not yet paid out at the showdown. */
+/** Main pot credits not yet paid out at the showdown. */
 function unpaid(game: Game): number {
   const hand = game.hand!;
   return mainPot(hand) - hand.pots.slice(0, hand.potIndex).reduce((a, p) => a + p.amount, 0);
@@ -240,7 +245,7 @@ function playerRow(game: Game, id: string, index: number): HTMLElement {
 
   return h("li", { class: `player${acting ? " acting" : ""}${folded || tag === "Out" || tag === "Sitting out" ? " dim" : ""}` },
     h("div", { class: "who" },
-      index === game.dealer ? h("span", { class: "dealer", title: "Dealer" }, "D") : null,
+      index === game.dealer ? h("span", { class: "dealer", title: "Dealer", "aria-label": "Dealer" }) : null,
       h("span", { class: "name" }, p.name),
       tag ? h("span", { class: "tag" }, tag) : null),
     h("div", { class: "nums" },
@@ -275,7 +280,7 @@ function dealPanel(game: Game): HTMLElement {
   if (players.length < 2) {
     const winner = players[0];
     return h("div", {},
-      heading(winner ? `${winner.name} wins the game!` : "Game over", "Everyone else is out of chips."),
+      heading(winner ? `${winner.name} wins the game!` : "Game over", "Everyone else is out of credits."),
       button("New game", () => endGame(), "primary big"));
   }
   const dealer = game.players[dealerFor(game)];
@@ -339,7 +344,7 @@ function betPanel(game: Game): HTMLElement {
   raiseButton.addEventListener("click", () => act((g) => bet(g, { type: "raise", to: raiseTo })));
   setRaise(raiseTo);
 
-  const facts = [`Round ${hand.round} betting`, owe > 0 ? `${owe} to call` : "nothing to call", `${p.chips} chips`];
+  const facts = [`Round ${hand.round} betting`, owe > 0 ? `${owe} to call` : "nothing to call", `${p.chips} credits`];
   return h("div", {},
     heading(`${p.name} to bet`, facts.join(" · ")),
     h("div", { class: "row" }, callOrCheck),
@@ -384,7 +389,7 @@ function showdownPanel(game: Game): HTMLElement {
   const label = hand.potIndex === 0 ? "main pot" : `side pot ${hand.potIndex}`;
   const chosen = hand.order.filter((id) => picked.includes(id) && pot.eligible.includes(id));
   return h("div", {},
-    heading(`Who wins the ${label}?`, `${pot.amount} chips. Pick two or more to split.`),
+    heading(`Who wins the ${label}?`, `Reveal your hands. ${pot.amount} credits; pick two or more to split.`),
     pickList(game, pot.eligible),
     button(
       chosen.length === 0 ? "Pick the winner" : chosen.length === 1 ? `Award to ${names(game, chosen)}` : `Split: ${names(game, chosen)}`,
@@ -454,14 +459,14 @@ function sheetEl(game: Game): HTMLElement {
       break;
     }
     case "players":
-      title = "Players & chips";
+      title = "Players & credits";
       body = playersSheet(game);
       break;
     default:
       title = "Menu";
       body = h("div", { class: "menu" },
         button("Hand log", () => openSheet("log")),
-        button("Players & chips", () => openSheet("players")),
+        button("Players & credits", () => openSheet("players")),
         button("Settings", () => openSheet("settings")),
         button("End game", () => {
           if (confirm("End this game? Chip counts will be cleared.")) endGame();
@@ -487,17 +492,17 @@ function playersSheet(game: Game): HTMLElement {
         },
       }),
       h("input", {
-        type: "number", class: "chips-input", inputMode: "numeric", min: "0", value: String(p.chips), "aria-label": "Chips",
+        type: "number", class: "chips-input", inputMode: "numeric", min: "0", value: String(p.chips), "aria-label": "Credits",
         onchange: (e: Event) => {
           const chips = Math.max(0, Math.floor(Number((e.target as HTMLInputElement).value)) || 0);
           act((g) => ({ ...g, players: g.players.map((x, j) => j === i ? { ...x, chips } : x) }));
         },
       })));
   return h("div", {},
-    h("p", { class: "muted small" }, "Rename, or set chips for a rebuy. Players with 0 chips sit out."),
+    h("p", { class: "muted small" }, "Rename, or set credits for a rebuy. Players with 0 credits sit out."),
     ...rows,
     game.players.length < 8 && !game.hand
-      ? button(`+ Add player (${game.settings.startingChips} chips)`, () => act((g) => ({
+      ? button(`+ Add player (${game.settings.startingChips} credits)`, () => act((g) => ({
         ...g,
         players: [...g.players, {
           id: `p${Math.max(...g.players.map((x) => Number(x.id.slice(1)))) + 1}`,
