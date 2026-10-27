@@ -45,10 +45,15 @@ describe("dealing", () => {
     let game = startHand(newGame(["A", "B", "C"], settings, 1));
     expect(game.hand!.order).toEqual(["p3", "p1", "p2"]);
     game = turnAction(game, "gain");
-    game = turnAction(game, "swap");
+    game = turnAction(game, "gainDiscard");
     expect(game.hand!.phase).toBe("turns");
-    game = turnAction(game, "stand");
+    game = turnAction(game, "swap");
     expect(game.hand!.phase).toBe("betting");
+    expect(game.log.slice(-3)).toEqual([
+      "  R1 C gains (draws and keeps).",
+      "  R1 A gains (discards, then draws).",
+      "  R1 B swaps.",
+    ]);
     expect(actor(game)).toBe("p3");
   });
 
