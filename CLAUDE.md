@@ -18,6 +18,8 @@ Chip and betting tracker for Corellian Spike Sabacc. One shared phone, no server
 - `src/main.ts`: rendering. `act(fn)` applies an engine function, pushes undo, saves
   and re-renders. Screen-only state (raise amount, picked winners, open sheet) lives
   in module variables.
+- `src/sound.ts`: sound effects synthesized with Web Audio (no audio files). `act(fn, sound)`
+  plays a sound after an action, plus a turn chime when the next player is up.
 - `test/engine.test.ts`: Vitest tests for the engine.
 
 ## Rules decisions
@@ -30,6 +32,9 @@ Chip and betting tracker for Corellian Spike Sabacc. One shared phone, no server
   doubles). Three rounds, then the showdown.
 - Bets and raises are "raise to" totals in steps of `settings.base`. Any raise,
   including an all-in above the current bet, reopens action for everyone else.
+- Betting your whole stack counts as all in however it's entered (the stepper's last
+  stop is the whole stack, even off the step grid). Once nobody else can answer a raise
+  (`canRaise`), the player may only call or fold.
 - Side pots are built from each player's total contribution (`buildPots`).
 - Only a winner of the main pot can take the Sabacc pot; otherwise it carries over.
   A hand won by everyone folding never pays the Sabacc pot.

@@ -15,6 +15,7 @@ import {
   awardSabacc,
   bet,
   canDeal,
+  canRaise,
   dealerFor,
   diceRolled,
   mainPot,
@@ -28,6 +29,7 @@ import {
   toCall,
   turnAction,
 } from "./engine";
+import { type Sound, isMuted, play, setMuted } from "./sound";
 import { h, storageGet, storageSet, toast } from "./ui";
 
 const STORE_KEY = "loco-sabacc";
@@ -60,9 +62,10 @@ function save(): void {
   storageSet(STORE_KEY, state);
 }
 
-/** Applies a game action, keeping the previous state for undo. */
-function act(fn: (game: Game) => Game): void {
+/** Applies a game action, keeping the previous state for undo, and plays its sound. */
+function act(fn: (game: Game) => Game, sound?: Sound): void {
   if (!state.game) return;
+  const before = state.game;
   try {
     const next = fn(state.game);
     state.undo.push(state.game);
@@ -77,6 +80,15 @@ function act(fn: (game: Game) => Game): void {
   navigator.vibrate?.(15);
   save();
   render();
+  if (sound) playAfter(before, state.game, sound);
+}
+
+function playAfter(before: Game, after: Game, sound: Sound): void {
+  play(sound);
+  const ended = before.hand?.phase !== "over" && after.hand?.phase === "over";
+  // Everyone else folded: the last player standing collects.
+  if (ended && (sound === "fold" || sound === "chips" || sound === "allin")) play("win", 0.35);
+  else if (actor(after) && actor(after) !== actor(before)) play("turn", 0.4);
 }
 
 function undo(): void {
@@ -214,7 +226,19 @@ function tableEl(game: Game): HTMLElement {
     h("header", { class: "bar" },
       h("button", { type: "button", class: "icon", disabled: state.undo.length === 0, onclick: undo, "aria-label": "Undo" }, "↶ Undo"),
       h("span", { class: "status" }, status),
-      h("button", { type: "button", class: "icon", onclick: () => openSheet("menu"), "aria-label": "Menu" }, "☰")),
+      h("div", { class: "bar-right" },
+        h("button", {
+          type: "button",
+          class: "icon",
+          "aria-label": isMuted() ? "Turn sound on" : "Turn sound off",
+          "aria-pressed": String(!isMuted()),
+          onclick: () => {
+            setMuted(!isMuted());
+            render();
+            play("tap");
+          },
+        }, isMuted() ? "🔇" : "🔊"),
+        h("button", { type: "button", class: "icon", onclick: () => openSheet("menu"), "aria-label": "Menu" }, "☰"))),
     h("section", { class: "pots" },
       h("div", { class: "pot" }, h("small", {}, "Main pot"), h("strong", {}, String(hand && hand.phase !== "over" ? unpaid(game) : 0))),
       h("div", { class: "pot sabacc" }, h("small", {}, "Sabacc pot"), h("strong", {}, String(game.sabaccPot)))),
@@ -287,7 +311,7 @@ function dealPanel(game: Game): HTMLElement {
   const { mainAnte, sabaccAnte } = game.settings;
   return h("div", {},
     heading(`${dealer.name} deals`, `Everyone antes ${mainAnte} to the main pot and ${sabaccAnte} to the Sabacc pot.`),
-    button(`Deal hand ${game.handsPlayed + 1}`, () => act(startHand), "primary big", !canDeal(game)));
+    button(`Deal hand ${game.handsPlayed + 1}`, () => act(startHand, "deal"), "primary big", !canDeal(game)));
 }
 
 const TURN_ACTIONS: { action: TurnAction; label: string; hint: string }[] = [
@@ -304,9 +328,9 @@ function turnPanel(game: Game): HTMLElement {
     heading(`${p.name}'s turn`, `Round ${hand.round}: choose a turn action.`),
     h("div", { class: "grid" },
       ...TURN_ACTIONS.map(({ action, label, hint }) =>
-        h("button", { type: "button", class: "secondary action", onclick: () => act((g) => turnAction(g, action)) },
+        h("button", { type: "button", class: "secondary action", onclick: () => act((g) => turnAction(g, action), "card") },
           label, h("small", {}, hint)))),
-    button("Junk (fold)", () => act((g) => turnAction(g, "junk")), "danger wide"));
+    button("Junk (fold)", () => act((g) => turnAction(g, "junk"), "fold"), "danger wide"));
 }
 
 function betPanel(game: Game): HTMLElement {
@@ -317,43 +341,49 @@ function betPanel(game: Game): HTMLElement {
   const already = hand.roundBet[id] ?? 0;
   const min = minRaiseTo(game);
   const max = maxRaiseTo(game, id);
-  const canRaise = min <= max;
+  const raiseAllowed = canRaise(game, id);
+  // The stepper is for bets of at least a full step; smaller stacks just use All in.
+  const showStepper = raiseAllowed && min < max;
   const step = game.settings.base;
-  // Highest total reachable in whole steps; going past it means All in.
+  // Highest total reachable in whole steps. Past it, the stepper's last stop is the whole stack.
   const cap = max - ((max - hand.currentBet) % step);
   const opening = hand.currentBet === 0;
-  if (!raiseTo || raiseTo < min || raiseTo > cap) raiseTo = min;
+  if (!raiseTo || raiseTo < min || raiseTo > max) raiseTo = min;
 
-  const pay = (a: BetAction) => () => act((g) => bet(g, a));
+  const BET_SOUND: Record<BetAction["type"], Sound> = { check: "tap", call: "chips", raise: "chips", allin: "allin", fold: "fold" };
+  const pay = (a: BetAction) => () => act((g) => bet(g, a), BET_SOUND[a.type]);
   const callOrCheck = owe > 0
     ? button(owe >= p.chips ? `Call ${owe} (all in)` : `Call ${owe}`, pay({ type: "call" }), "primary")
     : button("Check", pay({ type: "check" }), "primary");
 
   const amount = h("strong", { class: "amount" }, String(raiseTo));
   const raiseButton = h("button", { type: "button", class: "primary" }, "");
-  const minus = button("−", () => setRaise(raiseTo - step), "secondary step");
-  const plus = button("+", () => setRaise(raiseTo + step), "secondary step");
+  const minus = button("−", () => setRaise(raiseTo === max && max !== cap ? cap : raiseTo - step), "secondary step");
+  const plus = button("+", () => setRaise(raiseTo + step > cap ? max : raiseTo + step), "secondary step");
   function setRaise(to: number): void {
-    raiseTo = Math.max(min, Math.min(to, cap));
+    raiseTo = Math.max(min, Math.min(to, max));
     amount.textContent = String(raiseTo);
     const extra = raiseTo - already;
-    raiseButton.textContent = `${opening ? "Bet" : "Raise to"} ${raiseTo}${extra !== raiseTo ? ` (+${extra})` : ""}`;
+    raiseButton.textContent = raiseTo === max
+      ? `All in (${p.chips})`
+      : `${opening ? "Bet" : "Raise to"} ${raiseTo}${extra !== raiseTo ? ` (+${extra})` : ""}`;
     minus.disabled = raiseTo <= min;
-    plus.disabled = raiseTo + step > cap;
+    plus.disabled = raiseTo >= max;
   }
-  raiseButton.addEventListener("click", () => act((g) => bet(g, { type: "raise", to: raiseTo })));
+  // Betting the whole stack is an all in, however the player got there.
+  raiseButton.addEventListener("click", () => act((g) => bet(g, { type: "raise", to: raiseTo }), raiseTo === max ? "allin" : "chips"));
   setRaise(raiseTo);
 
   const facts = [`Round ${hand.round} betting`, owe > 0 ? `${owe} to call` : "nothing to call", `${p.chips} credits`];
   return h("div", {},
     heading(`${p.name} to bet`, facts.join(" · ")),
     h("div", { class: "row" }, callOrCheck),
-    canRaise
+    showStepper
       ? h("div", { class: "raise" }, minus, amount, plus, raiseButton)
       : null,
     h("div", { class: "row" },
       button("Fold", pay({ type: "fold" }), "danger"),
-      button(`All in (${p.chips})`, pay({ type: "allin" }), "secondary")));
+      raiseAllowed ? button(`All in (${p.chips})`, pay({ type: "allin" }), "secondary") : null));
 }
 
 function dicePanel(game: Game): HTMLElement {
@@ -362,8 +392,8 @@ function dicePanel(game: Game): HTMLElement {
   return h("div", {},
     heading("Roll the spike dice", last ? "Last roll. Then everyone reveals their hand." : `End of round ${hand.round}. Doubles mean a Sabacc Shift.`),
     h("div", { class: "row" },
-      button("No doubles", () => act((g) => diceRolled(g, false)), "primary"),
-      button("Doubles: Sabacc Shift", () => act((g) => diceRolled(g, true)), "secondary")));
+      button("No doubles", () => act((g) => diceRolled(g, false), "dice"), "primary"),
+      button("Doubles: Sabacc Shift", () => act((g) => diceRolled(g, true), "shift"), "secondary")));
 }
 
 function pickList(game: Game, ids: string[]): HTMLElement {
@@ -393,7 +423,7 @@ function showdownPanel(game: Game): HTMLElement {
     pickList(game, pot.eligible),
     button(
       chosen.length === 0 ? "Pick the winner" : chosen.length === 1 ? `Award to ${names(game, chosen)}` : `Split: ${names(game, chosen)}`,
-      () => act((g) => awardPot(g, chosen)),
+      () => act((g) => awardPot(g, chosen), "win"),
       "primary big",
       chosen.length === 0));
 }
@@ -407,16 +437,16 @@ function sabaccPanel(game: Game): HTMLElement {
     return h("div", {},
       heading(`Did ${name} have a Sabacc?`, `A hand totalling zero takes the Sabacc pot (${pot}).`),
       h("div", { class: "row" },
-        button(`Yes, ${name} takes ${pot}`, () => act((g) => awardSabacc(g, winners)), "primary"),
-        button("No, it carries over", () => act((g) => awardSabacc(g, [])), "secondary")));
+        button(`Yes, ${name} takes ${pot}`, () => act((g) => awardSabacc(g, winners), "sabacc"), "primary"),
+        button("No, it carries over", () => act((g) => awardSabacc(g, []), "tap"), "secondary")));
   }
   const chosen = winners.filter((id) => picked.includes(id));
   return h("div", {},
     heading("Who had a Sabacc?", `Pick the winners whose hands totalled zero; they share the Sabacc pot (${pot}).`),
     pickList(game, winners),
     h("div", { class: "row" },
-      button(chosen.length ? `Award to ${names(game, chosen)}` : "Pick a player", () => act((g) => awardSabacc(g, chosen)), "primary", chosen.length === 0),
-      button("No Sabacc", () => act((g) => awardSabacc(g, [])), "secondary")));
+      button(chosen.length ? `Award to ${names(game, chosen)}` : "Pick a player", () => act((g) => awardSabacc(g, chosen), "sabacc"), "primary", chosen.length === 0),
+      button("No Sabacc", () => act((g) => awardSabacc(g, []), "tap"), "secondary")));
 }
 
 function overPanel(game: Game): HTMLElement {
@@ -424,7 +454,7 @@ function overPanel(game: Game): HTMLElement {
   const results = hand.order.filter((id) => hand.won[id]).map((id) => `${player(game, id).name} +${hand.won[id]}`);
   return h("div", {},
     heading(`Hand ${hand.number} is over`, results.join(" · ") + (hand.sabaccWon ? " · Sabacc!" : "")),
-    button("Next hand", () => act(nextHand), "primary big"));
+    button("Next hand", () => act(nextHand, "card"), "primary big"));
 }
 
 // ---------- Menu sheets ----------

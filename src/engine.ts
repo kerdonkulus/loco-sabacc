@@ -123,6 +123,17 @@ export function toCall(game: Game, id: string): number {
   return Math.min(hand.currentBet - (hand.roundBet[id] ?? 0), player(game, id).chips);
 }
 
+/**
+ * Whether raising means anything: someone else still in the hand must have chips
+ * left to answer it. Once everyone else is all in, the only choices are call or fold.
+ */
+export function canRaise(game: Game, id: string): boolean {
+  const hand = game.hand!;
+  const p = player(game, id);
+  const others = activeIds(hand).filter((x) => x !== id && player(game, x).chips > 0);
+  return others.length > 0 && p.chips > toCall(game, id);
+}
+
 /** Smallest legal "raise to" total for the current actor. */
 export function minRaiseTo(game: Game): number {
   return game.hand!.currentBet + game.settings.base;
@@ -261,10 +272,13 @@ export function bet(prev: Game, action: BetAction): Game {
     case "raise": {
       const { to } = action;
       const step = game.settings.base;
-      if (to < hand.currentBet + step || (to - hand.currentBet) % step !== 0) {
+      if (!canRaise(game, id)) throw new Error("Nobody can match a raise. Call or fold.");
+      if (to - already > p.chips) throw new Error("Not enough chips.");
+      // Betting your whole stack is always allowed, even when it isn't a whole step.
+      const everything = to - already === p.chips && to > hand.currentBet;
+      if (!everything && (to < hand.currentBet + step || (to - hand.currentBet) % step !== 0)) {
         throw new Error(`Raise in steps of ${step}.`);
       }
-      if (to - already > p.chips) throw new Error("Not enough chips.");
       const verb = hand.currentBet === 0 ? "bets" : "raises to";
       put(to - already);
       hand.currentBet = to;
@@ -273,6 +287,9 @@ export function bet(prev: Game, action: BetAction): Game {
       break;
     }
     case "allin": {
+      if (!canRaise(game, id) && toCall(game, id) < p.chips) {
+        throw new Error("Nobody can match a raise. Call or fold.");
+      }
       const amount = p.chips;
       if (amount <= 0) throw new Error("No chips left.");
       put(amount);

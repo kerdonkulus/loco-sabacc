@@ -30,6 +30,10 @@ subdomain as Loco Stratego). Add it to your Home Screen and it works offline.
    winner had a **Sabacc** (a hand totalling zero): if so, they take the Sabacc pot,
    otherwise it carries over to the next hand.
 
+Sound effects play for dealing, turn actions, chips, the dice, Sabacc Shifts and
+wins, plus a little droid chatter when it's the next player's turn. Tap 🔊 to mute.
+On iPhone, the ring/silent switch must be on ring to hear them.
+
 If everyone else folds, the last player takes the main pot and the Sabacc pot carries
 over. **Undo** takes back any tap. Players who run out of chips sit out; you can give
 them a rebuy under **Menu → Players & chips**.

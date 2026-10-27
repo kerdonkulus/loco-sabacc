@@ -350,6 +350,11 @@ select option {
   gap: 8px;
 }
 
+.bar-right {
+  display: flex;
+  gap: 6px;
+}
+
 .status {
   font-family: var(--display);
   font-size: 0.8rem;
@@ -406,7 +411,7 @@ select option {
 .pot strong {
   font-family: var(--display);
   font-size: 1.9rem;
-  font-weight: 800;
+  font-weight: 600;
   color: var(--tone);
   text-shadow: 0 0 14px var(--tone-glow);
   font-variant-numeric: tabular-nums;
