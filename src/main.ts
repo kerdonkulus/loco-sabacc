@@ -15,6 +15,7 @@ import {
   awardSabacc,
   bet,
   canDeal,
+  canRaise,
   dealerFor,
   diceRolled,
   mainPot,
@@ -340,12 +341,14 @@ function betPanel(game: Game): HTMLElement {
   const already = hand.roundBet[id] ?? 0;
   const min = minRaiseTo(game);
   const max = maxRaiseTo(game, id);
-  const canRaise = min <= max;
+  const raiseAllowed = canRaise(game, id);
+  // The stepper is for bets of at least a full step; smaller stacks just use All in.
+  const showStepper = raiseAllowed && min < max;
   const step = game.settings.base;
-  // Highest total reachable in whole steps; going past it means All in.
+  // Highest total reachable in whole steps. Past it, the stepper's last stop is the whole stack.
   const cap = max - ((max - hand.currentBet) % step);
   const opening = hand.currentBet === 0;
-  if (!raiseTo || raiseTo < min || raiseTo > cap) raiseTo = min;
+  if (!raiseTo || raiseTo < min || raiseTo > max) raiseTo = min;
 
   const BET_SOUND: Record<BetAction["type"], Sound> = { check: "tap", call: "chips", raise: "chips", allin: "allin", fold: "fold" };
   const pay = (a: BetAction) => () => act((g) => bet(g, a), BET_SOUND[a.type]);
@@ -355,29 +358,32 @@ function betPanel(game: Game): HTMLElement {
 
   const amount = h("strong", { class: "amount" }, String(raiseTo));
   const raiseButton = h("button", { type: "button", class: "primary" }, "");
-  const minus = button("−", () => setRaise(raiseTo - step), "secondary step");
-  const plus = button("+", () => setRaise(raiseTo + step), "secondary step");
+  const minus = button("−", () => setRaise(raiseTo === max && max !== cap ? cap : raiseTo - step), "secondary step");
+  const plus = button("+", () => setRaise(raiseTo + step > cap ? max : raiseTo + step), "secondary step");
   function setRaise(to: number): void {
-    raiseTo = Math.max(min, Math.min(to, cap));
+    raiseTo = Math.max(min, Math.min(to, max));
     amount.textContent = String(raiseTo);
     const extra = raiseTo - already;
-    raiseButton.textContent = `${opening ? "Bet" : "Raise to"} ${raiseTo}${extra !== raiseTo ? ` (+${extra})` : ""}`;
+    raiseButton.textContent = raiseTo === max
+      ? `All in (${p.chips})`
+      : `${opening ? "Bet" : "Raise to"} ${raiseTo}${extra !== raiseTo ? ` (+${extra})` : ""}`;
     minus.disabled = raiseTo <= min;
-    plus.disabled = raiseTo + step > cap;
+    plus.disabled = raiseTo >= max;
   }
-  raiseButton.addEventListener("click", () => act((g) => bet(g, { type: "raise", to: raiseTo }), "chips"));
+  // Betting the whole stack is an all in, however the player got there.
+  raiseButton.addEventListener("click", () => act((g) => bet(g, { type: "raise", to: raiseTo }), raiseTo === max ? "allin" : "chips"));
   setRaise(raiseTo);
 
   const facts = [`Round ${hand.round} betting`, owe > 0 ? `${owe} to call` : "nothing to call", `${p.chips} credits`];
   return h("div", {},
     heading(`${p.name} to bet`, facts.join(" · ")),
     h("div", { class: "row" }, callOrCheck),
-    canRaise
+    showStepper
       ? h("div", { class: "raise" }, minus, amount, plus, raiseButton)
       : null,
     h("div", { class: "row" },
       button("Fold", pay({ type: "fold" }), "danger"),
-      button(`All in (${p.chips})`, pay({ type: "allin" }), "secondary")));
+      raiseAllowed ? button(`All in (${p.chips})`, pay({ type: "allin" }), "secondary") : null));
 }
 
 function dicePanel(game: Game): HTMLElement {
