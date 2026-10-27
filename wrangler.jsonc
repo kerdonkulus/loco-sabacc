@@ -1,0 +1,10 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "loco-sabacc",
+  "compatibility_date": "2026-09-01",
+  // Static site only: no Worker code, just the built app.
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}
