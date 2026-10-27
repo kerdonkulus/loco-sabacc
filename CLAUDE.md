@@ -7,8 +7,9 @@ Chip and betting tracker for Corellian Spike Sabacc. One shared phone, no server
 - TypeScript + Vite, plain DOM (no framework). `h()` in `src/ui.ts` builds elements.
 - State is a single `Game` object saved to localStorage (`loco-sabacc` key) together
   with an undo stack of previous `Game`s.
-- Hosted on GitHub Pages under `/loco-sabacc/`, so every URL is relative (`base: "./"`
-  in `vite.config.ts`, `./` paths in `index.html`, the manifest and `public/sw.js`).
+- Hosted on Cloudflare Workers static assets (`wrangler.jsonc`, no Worker code).
+  URLs are relative (`base: "./"` in `vite.config.ts`, `./` paths in `index.html`,
+  the manifest and `public/sw.js`), so the app works from any path.
 
 ## Layout
 

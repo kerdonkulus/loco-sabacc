@@ -1,5 +1,5 @@
 // Service worker: caches the app so it works at the table with no signal.
-// Paths are relative to the worker's scope, so it works under /loco-sabacc/.
+// Paths are relative to the worker's scope, so the app can live under any path.
 
 const CACHE = "sabacc-v1";
 const SCOPE = new URL(self.registration.scope);

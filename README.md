@@ -4,8 +4,8 @@ A chip and betting tracker for **Corellian Spike Sabacc**, played on one phone
 that sits on the table. Poker chip apps don't follow Sabacc's turn order; this one
 does: turn action, then betting, then the spike dice, three times per hand.
 
-Play it at **https://kerdonkulus.github.io/loco-sabacc/**. Add it to your Home
-Screen and it works offline.
+Play it at **https://loco-sabacc.<your-subdomain>.workers.dev** (the same Cloudflare
+subdomain as Loco Stratego). Add it to your Home Screen and it works offline.
 
 ## How a hand goes
 
@@ -52,5 +52,7 @@ npm run dev       # http://localhost:5173
 
 ## Deploying
 
-Every push to `main` deploys to GitHub Pages (`.github/workflows/deploy.yml`).
-One-time setup: in the repo's **Settings → Pages**, set **Source** to **GitHub Actions**.
+Every push to `main` deploys to Cloudflare Workers as a static site
+(`.github/workflows/deploy.yml`, `wrangler.jsonc`). The workflow needs two repository
+secrets, the same as Loco Stratego: `CLOUDFLARE_API_TOKEN` (the "Edit Cloudflare
+Workers" token template) and `CLOUDFLARE_ACCOUNT_ID`.
